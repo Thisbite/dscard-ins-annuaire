@@ -1,8 +1,9 @@
 import sqlite3
+import  pandas as pd
 
-import pandas as pd
-
-
+conn = sqlite3.connect('database.db')
+c = conn.cursor()
+#c.execute("DROP TABLE indicateur")
 def create_tables():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -13,8 +14,7 @@ def create_tables():
             nom_prenoms TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             matricule TEXT UNIQUE NOT NULL,
-            numero TEXT NOT NULL,
-            password TEXT NOT NULL
+            numero TEXT NOT NULL
         )
     ''')
 
@@ -24,8 +24,7 @@ def create_tables():
                nom_prenoms TEXT NOT NULL,
                email TEXT UNIQUE NOT NULL,
                matricule TEXT UNIQUE NOT NULL,
-               numero TEXT NOT NULL,
-               password TEXT NOT NULL
+               numero TEXT NOT NULL
            )
        ''')
 
@@ -52,17 +51,19 @@ def create_tables():
     ''')
     c.execute('''
           CREATE TABLE IF NOT EXISTS region (
-              id_region INTEGER PRIMARY KEY AUTOINCREMENT,
+              id  INTEGER PRIMARY KEY AUTOINCREMENT,
+              id_region INTEGER,
               nom_region TEXT NOT NULL,
               nom_departement TEXT NOT NULL,
               nom_sous_prefecture TEXT NOT NULL
           )
-            ''')
+    ''')
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS indicateur (
-            id_indicateur INTEGER PRIMARY KEY AUTOINCREMENT,
-            libelle TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_indicateur INTEGER,
+            indicateur TEXT NOT NULL,
             type_indicateur TEXT NOT NULL,
             id_domaine INTEGER,
             FOREIGN KEY (id_domaine) REFERENCES domaine(id_domaine)
@@ -71,18 +72,17 @@ def create_tables():
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS domaine (
-            id_domaine INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_domaine INTEGER NOT NULL,
             titre_domaine TEXT NOT NULL
         )
     ''')
-
-
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS reponse (
             id_reponse INTEGER PRIMARY KEY AUTOINCREMENT,
             valeur_reponse TEXT,
-            date_donnee TEXT,
+            date_collecte TEXT,
             matricule_agent TEXT NOT NULL,
             id_indicateur INTEGER,
             id_region INTEGER,
@@ -95,287 +95,252 @@ def create_tables():
     conn.commit()
     conn.close()
 
-# Appel de la fonction pour créer les tables
-create_tables()
-
-
-def statistique():
-    conn = sqlite3.connect("database.db")
-    c = conn.cursor()
-
-    query = '''
-    SELECT 
-        r.nom_region,
-        r.nom_departement,
-        r.nom_sous_prefecture,
-        d.titre_domaine,
-        i.libelle,
-        re.valeur_reponse,
-        re.date_donnee,
-        a.nom_prenoms
-    FROM 
-        region r
-    JOIN 
-        reponse re ON r.id_region = re.id_region
-    JOIN 
-        indicateur i ON i.id_indicateur = re.id_indicateur
-    JOIN 
-        domaine d ON i.id_domaine = d.id_domaine
-    JOIN 
-        agent_collecte a ON re.matricule_agent = a.matricule
-    '''
-
-    c.execute(query)
-    data = c.fetchall()
-
-    df = pd.DataFrame(data,
-                      columns=["Région", "Département", "Sous-préfecture", "Domaine", "Indicateur", "Valeur indicateur",
-                               "Année de collecte", "Nom de l'agent"])
-
-    conn.close()
-    return df
-
-
-### ********************************************************************* Enregistrer
-def enregistrer_agent_collecte(nom_prenoms, email, matricule, numero, password):
+# Function to record agent_collecte entries
+def enregistrer_agent_collecte(nom_prenoms, email, matricule, numero):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
-        INSERT INTO agent_collecte (nom_prenoms, email, matricule, numero, password)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (nom_prenoms, email, matricule, numero, password))
-
+        INSERT INTO agent_collecte (nom_prenoms, email, matricule, numero)
+        VALUES (?, ?, ?, ?)
+    ''', (nom_prenoms, email, matricule, numero))
     conn.commit()
     conn.close()
 
-def enregistrer_equipe_technique(nom_prenoms, email, matricule, numero, password):
+# Function to modify agent_collecte entries
+def modifier_agent_collecte(id, nom_prenoms, email, matricule, numero):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
-        INSERT INTO equipe_technique (nom_prenoms, email, matricule, numero, password)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (nom_prenoms, email, matricule, numero, password))
-
+        UPDATE agent_collecte
+        SET nom_prenoms = ?, email = ?, matricule = ?, numero = ?
+        WHERE id = ?
+    ''', (nom_prenoms, email, matricule, numero, id))
     conn.commit()
     conn.close()
 
+# Function to record equipe_technique entries
+def enregistrer_equipe_technique(nom_prenoms, email, matricule, numero):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO equipe_technique (nom_prenoms, email, matricule, numero)
+        VALUES (?, ?, ?, ?)
+    ''', (nom_prenoms, email, matricule, numero))
+    conn.commit()
+    conn.close()
+
+# Function to modify equipe_technique entries
+def modifier_equipe_technique(id, nom_prenoms, email, matricule, numero):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE equipe_technique
+        SET nom_prenoms = ?, email = ?, matricule = ?, numero = ?
+        WHERE id = ?
+    ''', (nom_prenoms, email, matricule, numero, id))
+    conn.commit()
+    conn.close()
+
+# Function to record directeur entries
 def enregistrer_directeur(nom_prenoms, email, matricule_dr, numero):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
         INSERT INTO directeur (nom_prenoms, email, matricule_dr, numero)
         VALUES (?, ?, ?, ?)
     ''', (nom_prenoms, email, matricule_dr, numero))
-
     conn.commit()
     conn.close()
 
-def enregistrer_direction_regionale(nom_direction, region, matricule_agent, matricule_dr):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO direction_regionale (nom_direction, region, matricule_agent, matricule_dr)
-        VALUES (?, ?, ?, ?)
-    ''', (nom_direction, region, matricule_agent, matricule_dr))
-
-    conn.commit()
-    conn.close()
-
-def enregistrer_indicateur(libelle, type_indicateur, id_domaine):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO indicateur (libelle, type_indicateur, id_domaine)
-        VALUES (?, ?, ?)
-    ''', (libelle, type_indicateur, id_domaine))
-
-    conn.commit()
-    conn.close()
-
-def enregistrer_domaine(titre_domaine):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO domaine (titre_domaine)
-        VALUES (?)
-    ''', (titre_domaine,))
-
-    conn.commit()
-    conn.close()
-
-def enregistrer_region(nom_region, nom_departement, nom_sous_prefecture):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO region (nom_region, nom_departement, nom_sous_prefecture)
-        VALUES (?, ?, ?)
-    ''', (nom_region, nom_departement, nom_sous_prefecture))
-
-    conn.commit()
-    conn.close()
-
-def enregistrer_reponse(valeur_reponse, date_donnee, matricule_agent, id_indicateur, id_region):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        INSERT INTO reponse (valeur_reponse, date_donnee, matricule_agent, id_indicateur, id_region)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (valeur_reponse, date_donnee, matricule_agent, id_indicateur, id_region))
-
-    conn.commit()
-    conn.close()
-
-###**************************************************Modifier
-def modifier_agent_collecte(id, nom_prenoms, email, matricule, numero, password):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        UPDATE agent_collecte
-        SET nom_prenoms = ?, email = ?, matricule = ?, numero = ?, password = ?
-        WHERE id = ?
-    ''', (nom_prenoms, email, matricule, numero, password, id))
-
-    conn.commit()
-    conn.close()
-
-def modifier_equipe_technique(id, nom_prenoms, email, matricule, numero, password):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
-    c.execute('''
-        UPDATE agent_collecte
-        SET nom_prenoms = ?, email = ?, matricule = ?, numero = ?, password = ?
-        WHERE id = ?
-    ''', (nom_prenoms, email, matricule, numero, password, id))
-
-    conn.commit()
-    conn.close()
-
+# Function to modify directeur entries
 def modifier_directeur(id, nom_prenoms, email, matricule_dr, numero):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
         UPDATE directeur
         SET nom_prenoms = ?, email = ?, matricule_dr = ?, numero = ?
         WHERE id = ?
     ''', (nom_prenoms, email, matricule_dr, numero, id))
-
     conn.commit()
     conn.close()
 
+# Function to record direction_regionale entries
+def enregistrer_direction_regionale(nom_direction, region, matricule_agent, matricule_dr):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO direction_regionale (nom_direction, region, matricule_agent, matricule_dr)
+        VALUES (?, ?, ?, ?)
+    ''', (nom_direction, region, matricule_agent, matricule_dr))
+    conn.commit()
+    conn.close()
+
+# Function to modify direction_regionale entries
 def modifier_direction_regionale(id, nom_direction, region, matricule_agent, matricule_dr):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
         UPDATE direction_regionale
         SET nom_direction = ?, region = ?, matricule_agent = ?, matricule_dr = ?
         WHERE id = ?
     ''', (nom_direction, region, matricule_agent, matricule_dr, id))
-
     conn.commit()
     conn.close()
 
-def modifier_indicateur(id_indicateur, libelle, type_indicateur, id_domaine):
+# Function to record region entries
+def enregistrer_region(id_region, nom_region, nom_departement, nom_sous_prefecture):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
-        UPDATE indicateur
-        SET libelle = ?, type_indicateur = ?, id_domaine = ?
-        WHERE id_indicateur = ?
-    ''', (libelle, type_indicateur, id_domaine, id_indicateur))
-
+        INSERT INTO region (id_region, nom_region, nom_departement, nom_sous_prefecture)
+        VALUES (?, ?, ?, ?)
+    ''', (id_region, nom_region, nom_departement, nom_sous_prefecture))
     conn.commit()
     conn.close()
 
-def modifier_domaine(id_domaine, titre_domaine):
+# Function to modify region entries
+def modifier_region(id, id_region, nom_region, nom_departement, nom_sous_prefecture):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
-    c.execute('''
-        UPDATE domaine
-        SET titre_domaine = ?
-        WHERE id_domaine = ?
-    ''', (titre_domaine, id_domaine))
-
-    conn.commit()
-    conn.close()
-
-def modifier_region(id_region, nom_region, nom_departement, nom_sous_prefecture):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-
     c.execute('''
         UPDATE region
-        SET nom_region = ?, nom_departement = ?, nom_sous_prefecture = ?
-        WHERE id_region = ?
-    ''', (nom_region, nom_departement, nom_sous_prefecture, id_region))
-
+        SET id_region = ?, nom_region = ?, nom_departement = ?, nom_sous_prefecture = ?
+        WHERE id = ?
+    ''', (id_region, nom_region, nom_departement, nom_sous_prefecture, id))
     conn.commit()
     conn.close()
 
-def modifier_reponse(id_reponse, valeur_reponse, date_donnee, matricule_agent, id_indicateur, id_region):
+
+
+# Function to record indicateur entries
+
+
+
+
+def enregistrer_indicateur(id_indicateur, indicateur, type_indicateur, id_domaine):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-
     c.execute('''
-        UPDATE reponse
-        SET valeur_reponse = ?, date_donnee = ?, matricule_agent = ?, id_indicateur = ?, id_region = ?
-        WHERE id_reponse = ?
-    ''', (valeur_reponse, date_donnee, matricule_agent, id_indicateur, id_region, id_reponse))
-
+        INSERT INTO indicateur (id_indicateur, indicateur, type_indicateur, id_domaine)
+        VALUES (?, ?, ?, ?)
+    ''', (id_indicateur, indicateur, type_indicateur, id_domaine))
     conn.commit()
     conn.close()
 
-"""
-# Enregistre trois agents de collecte
-enregistrer_agent_collecte("AJohnn Doe", "john@example.com", "AAAG001", "1234567890", "password123")
-enregistrer_agent_collecte("AJane M Smith", "jane@example.com", "AAAG002", "0987654321", "password456")
-enregistrer_agent_collecte("AEmily Davis", "emily@example.com", "AAAG003", "1122334455", "password789")
+# Function to modify indicateur entries
+def modifier_indicateur(id, id_indicateur, indicateur, type_indicateur, id_domaine):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE indicateur
+        SET id_indicateur = ?, indicateur = ?, type_indicateur = ?, id_domaine = ?
+        WHERE id = ?
+    ''', (id_indicateur, indicateur, type_indicateur, id_domaine, id))
+    conn.commit()
+    conn.close()
 
-# Enregistre trois membres de l'équipe technique
-enregistrer_equipe_technique("Michael Brown", "michael@example.com", "ET001", "2233445566", "techpass123")
-enregistrer_equipe_technique("Sarah Johnson", "sarah@example.com", "ET002", "3344556677", "techpass456")
-enregistrer_equipe_technique("David Wilson", "david@example.com", "ET003", "4455667788", "techpass789")
 
-# Enregistre trois directeurs
-enregistrer_directeur("Alice Cooper", "alice@example.com", "DR001", "5566778899")
-enregistrer_directeur("Bob Marley", "bob@example.com", "DR002", "6677889900")
-enregistrer_directeur("Charlie Parker", "charlie@example.com", "DR003", "7788990011")
 
-# Enregistre trois directions régionales
-enregistrer_direction_regionale("Direction Nord", "Nord", "AG001", "DR001")
-enregistrer_direction_regionale("Direction Sud", "Sud", "AG002", "DR002")
-enregistrer_direction_regionale("Direction Est", "Est", "AG003", "DR003")
+def supprimer_doublons_indicateur():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
 
-# Enregistre trois indicateurs
-enregistrer_indicateur("Nombre de classe", "Type 1", 1)
-enregistrer_indicateur("Nombre de lit", "Type 2", 2)
-enregistrer_indicateur("Nombre de cas", "Type 3", 3)
+    try:
+        # Select unique rows based on specific columns and store them in a temporary table
+        cursor.execute('''
+            CREATE TEMPORARY TABLE indicateur_temp AS
+            SELECT MIN(id) as id, id_indicateur, indicateur, type_indicateur, id_domaine
+            FROM indicateur
+            GROUP BY id_indicateur, indicateur, type_indicateur, id_domaine
+        ''')
 
-# Enregistre trois domaines
-enregistrer_domaine("Education ")
-enregistrer_domaine("Santé ")
-enregistrer_domaine("Transport")
+        # Delete all rows from the original table
+        cursor.execute('DELETE FROM indicateur')
 
-# Enregistre trois régions
-enregistrer_region("Poro", "Korhogo", "Kanoroba")
-enregistrer_region("Poro", "M'Bengué", "Katiali")
-enregistrer_region("Poro", "Sinematiali", "Bahouakaha")
+        # Re-insert unique rows back into the original table
+        cursor.execute('''
+            INSERT INTO indicateur (id, id_indicateur, indicateur, type_indicateur, id_domaine)
+            SELECT id, id_indicateur, indicateur, type_indicateur, id_domaine
+            FROM indicateur_temp
+        ''')
 
-# Enregistre trois réponses
-enregistrer_reponse("Valeur 1", "2023-07-01", "AAG001", 1, 1)
-enregistrer_reponse("Valeur 2", "2023-07-02", "AAG002", 2, 2)
-enregistrer_reponse("Valeur 3", "2023-07-03", "AAG003", 3, 3)
-"""
+        # Drop the temporary table
+        cursor.execute('DROP TABLE indicateur_temp')
+
+        conn.commit()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        conn.close()
+
+
+
+def obtenir_indicateur():
+    conn = sqlite3.connect('database.db')
+    cursor = conn.cursor()
+    cursor.execute('''SELECT
+                        id,
+                        id_domaine,
+                        id_indicateur,
+                        indicateur,
+                        type_indicateur
+
+                    FROM indicateur''')
+    data=cursor.fetchall()
+    df=pd.DataFrame(data,columns=["ID","ID domaine","ID indicateur","Indicateur","Type indicateur"])
+    return df
+
+
+
+
+
+
+# Function to record domaine entries
+def enregistrer_domaine(id_domaine, titre_domaine):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO domaine (id_domaine, titre_domaine)
+        VALUES (?, ?)
+    ''', (id_domaine, titre_domaine))
+    conn.commit()
+    conn.close()
+
+# Function to modify domaine entries
+def modifier_domaine(id, id_domaine, titre_domaine):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE domaine
+        SET id_domaine = ?, titre_domaine = ?
+        WHERE id = ?
+    ''', (id_domaine, titre_domaine, id))
+    conn.commit()
+    conn.close()
+
+# Function to record reponse entries
+def enregistrer_reponse(valeur_reponse, date_collecte, matricule_agent, id_indicateur, id_region):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO reponse (valeur_reponse, date_collecte, matricule_agent, id_indicateur, id_region)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (valeur_reponse, date_collecte, matricule_agent, id_indicateur, id_region))
+    conn.commit()
+    conn.close()
+
+# Function to modify reponse entries
+def modifier_reponse(id_reponse, valeur_reponse, date_collecte, matricule_agent, id_indicateur, id_region):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE reponse
+        SET valeur_reponse = ?, date_collecte = ?, matricule_agent = ?, id_indicateur = ?, id_region = ?
+        WHERE id_reponse = ?
+    ''', (valeur_reponse, date_collecte, matricule_agent, id_indicateur, id_region, id_reponse))
+    conn.commit()
+    conn.close()
+
+# Call to create tables
+create_tables()
+#enregistrer_agent_collecte("Deom","demo@demo.com","demo123","0809090")
