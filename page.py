@@ -50,13 +50,11 @@ def authenticate(email, matricule):
 
 
 def page1():
-    st.title("Saisie ou importation des données")
-    st.write("Bienvenue sur la page d'importation")
+    formulaire_reponse()
+    st.subheader("Importer la liste des indicateurs")
     upload_file_excel_indicateur()
-    df=data.obtenir_indicateur()
     if 'show_data' not in st.session_state:
         st.session_state['show_data'] = False
-
     if st.button("Afficher/Cacher les données"):
         st.session_state['show_data'] = not st.session_state['show_data']
         if st.session_state['show_data']:
@@ -90,7 +88,9 @@ def page4():
     st.write("Bienvenue sur la Page 4")
 
 
-
+"""
+Ensemble des elements de la pade 1
+"""
 
 def process_excel_file_indicateur(df):
     for index, row in df.iterrows():
@@ -103,8 +103,6 @@ def process_excel_file_indicateur(df):
         )
 
 def upload_file_excel_indicateur():
-    st.write("Charger la liste des indicateurs")
-
     uploaded_file = st.file_uploader("Choisir la feuille Excel", type="xlsx", key="indfile1212")
 
     if uploaded_file is not None:
@@ -137,3 +135,117 @@ def upload_file_excel_indicateur():
         except Exception as e:
             st.error(f"Erreur avec le fichier Excel: {e}")
     return
+
+
+# Function to process the Excel file and save data
+def process_excel_file_reponse(df):
+    expected_columns = ["code localité", "code indicateur", "année de collecte", "valeur globale",
+                                "valeur masculine", "valeur feminine", "valeur urbaine", "valeur rurale",
+                                "matricule agent"]
+    # Normalize the column names to avoid issues with spaces or hidden characters
+    df.columns = [col.strip().lower() for col in df.columns]
+    normalized_expected_columns = [col.strip().lower() for col in expected_columns]
+
+    # Create a mapping of expected column names to actual column names in the DataFrame
+    column_mapping = {}
+    for expected_col in normalized_expected_columns:
+        for actual_col in df.columns:
+            if expected_col == actual_col:
+                column_mapping[expected_col] = actual_col
+
+    # Check if all expected columns are present in the DataFrame
+    if all(col in column_mapping for col in normalized_expected_columns):
+        for index, row in df.iterrows():
+            data.enregistrer_reponse(
+                row[column_mapping['code localité']],
+                row[column_mapping['code indicateur']],
+                row[column_mapping['année de collecte']],
+                row[column_mapping['valeur globale']],
+                row[column_mapping['valeur masculine']],
+                row[column_mapping['valeur feminine']],
+                row[column_mapping['valeur urbaine']],
+                row[column_mapping['valeur rurale']],
+                row[column_mapping['matricule agent']]
+            )
+    else:
+        missing_columns = [col for col in normalized_expected_columns if col not in column_mapping]
+        raise ValueError(f"Les colonnes suivantes sont manquantes dans le fichier : {', '.join(missing_columns)}")
+
+
+def formulaire_reponse():
+    st.header("Gestion des données")
+
+    st.subheader("Importer les données du questionnaire")
+    uploaded_file = st.file_uploader("Choisir un fichier Excel", type="xlsx")
+
+    if uploaded_file is not None:
+        try:
+            # Load the Excel file
+            excel_file = pd.ExcelFile(uploaded_file)
+            sheet_names = excel_file.sheet_names
+            sheet_name = st.selectbox("Choisir la feuille", sheet_names)
+            df = pd.read_excel(uploaded_file, sheet_name=sheet_name)
+
+            # Display the dataframe
+            st.dataframe(df)
+
+            # Define the expected columns
+            expected_columns = ["code localité", "code indicateur", "année de collecte", "valeur globale",
+                                "valeur masculine", "valeur feminine", "valeur urbaine", "valeur rurale",
+                                "matricule agent"]
+
+            # Normalize column names to avoid issues with spaces or hidden characters
+            df.columns = [col.strip().lower() for col in df.columns]
+            normalized_expected_columns = [col.strip().lower() for col in expected_columns]
+
+            # Check if the expected columns are present in the dataframe
+            if all(col in df.columns for col in normalized_expected_columns):
+                if st.button("Enregistrer dans la base de données"):
+                    try:
+                        process_excel_file_reponse(df)
+                        st.success("Données enregistrées avec succès !")
+                    except Exception as e:
+                        st.error(f"Erreur lors de l'enregistrement: {e}")
+            else:
+                missing_columns = [col for col in normalized_expected_columns if col not in df.columns]
+                st.warning(
+                    f"Les colonnes attendues ne correspondent pas. Colonnes manquantes : {', '.join(missing_columns)}")
+        except Exception as e:
+            st.error(f"Erreur lors du chargement du fichier: {e}")
+
+    # Form for modifying an existing entry
+    if st.checkbox("Modifier une réponse",key="page1_mod_repon"):
+        df=data.obtenir_base_donne()
+        st.write(df)
+        formulaire_modifier_une_reponse()
+
+    return
+
+
+def formulaire_modifier_une_reponse():
+    st.header("Modifier une Réponse")
+    id_reponse = st.number_input("ID Réponse", min_value=1, step=1)
+    code_localite = st.text_input("Code Localité")
+    f_code_indicateur = st.text_input("Code Indicateur")
+    annee_collecte = st.text_input("Année de Collecte")
+    valeur_globale = st.text_input("Valeur Globale")
+    valeur_masculine = st.text_input("Valeur Masculine")
+    valeur_feminine = st.text_input("Valeur Féminine")
+    valeur_urbaine = st.text_input("Valeur Urbaine")
+    valeur_rurale = st.text_input("Valeur Rurale")
+    f_matricule_agent = st.text_input("Matricule Agent")
+
+    if st.button("Modifier"):
+        try:
+            data.modifier_reponse(id_reponse, code_localite, f_code_indicateur, annee_collecte, valeur_globale,
+                                  valeur_masculine, valeur_feminine, valeur_urbaine, valeur_rurale, f_matricule_agent)
+            st.success("Réponse modifiée avec succès")
+        except Exception as e:
+            st.error(f"Erreur lors de la modification: {e}")
+
+
+"""
+Fin du bloc page 1
+"""
+
+
