@@ -43,11 +43,11 @@ def main():
         page = st.sidebar.selectbox("Choisir une page", ["Connexion"])
     else:
         if st.session_state['role'] == 'agent_collecte':
-            page = st.sidebar.selectbox("Choisir une page", ["Page 1"])
+            page = st.sidebar.selectbox("Choisir une page", ["Saisie"])
         elif st.session_state['role'] == 'directeur':
-            page = st.sidebar.selectbox("Choisir une page", ["Page 1", "Page 2"])
+            page = st.sidebar.selectbox("Choisir une page", ["Saisie", "Statistiques"])
         elif st.session_state['role'] == 'equipe_technique':
-            page = st.sidebar.selectbox("Choisir une page", ["Page 1", "Page 2", "Page 3", "Page 4"])
+            page = st.sidebar.selectbox("Choisir une page", ["Saisie", "Statistiques", "Configuration", "Exportation de la base"])
 
     if page == "Connexion":
         st.header("Connexion des Utilisateurs")
@@ -68,15 +68,15 @@ def main():
                     st.experimental_rerun()
                 else:
                     st.error("Identifiants incorrects")
-    elif page == "Page 1":
+    elif page == "Saisie":
         p.page1()
-    elif page == "Page 2" and st.session_state['logged_in']:
+    elif page == "Statistiques" and st.session_state['logged_in']:
         user = st.session_state['user']
         direction_regionale = st.session_state['direction_regionale']
         p.page2(user, direction_regionale)
-    elif page == "Page 3" and st.session_state['logged_in']:
+    elif page == "Configuration" and st.session_state['logged_in']:
         p.page3()
-    elif page == "Page 4" and st.session_state['logged_in']:
+    elif page == "Exportation de la base" and st.session_state['logged_in']:
         p.page4()
 
     # Ajouter une fonctionnalité de déconnexion
